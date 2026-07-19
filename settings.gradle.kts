@@ -48,11 +48,6 @@ dependencyResolutionManagement {
         maven { url = uri("https://maven.pkg.jetbrains.space/public/p/compose/dev") }
         maven { url = uri("https://jitpack.io") }
     }
-    versionCatalogs {
-        create("libs") {
-            from(files("gradle/libs.versions.toml"))
-        }
-    }
 }
 
 rootProject.name = "SceneEditor"
