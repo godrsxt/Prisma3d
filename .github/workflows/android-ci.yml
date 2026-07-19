@@ -128,15 +128,6 @@ jobs:
       matrix:
         api-level: [24, 28, 31, 34]
         arch: [x86_64]
-        include:
-          - api-level: 24
-            ndk-version: "25.2.9519653"
-          - api-level: 28
-            ndk-version: "25.2.9519653"
-          - api-level: 31
-            ndk-version: "26.1.10909125"
-          - api-level: 34
-            ndk-version: "26.1.10909125"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -156,33 +147,18 @@ jobs:
       - name: Generate Gradle Wrapper
         run: gradle wrapper --gradle-version ${{ env.GRADLE_VERSION }}
 
-      - name: Cache Android SDK, NDK, CMake
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.android/sdk
-            ~/.android/ndk
-            ~/.android/cmake
-          key: ${{ runner.os }}-android-sdk-${{ matrix.api-level }}-${{ matrix.arch }}-${{ hashFiles('**/build.gradle*', '**/gradle.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-android-sdk-${{ matrix.api-level }}-${{ matrix.arch }}-
-            ${{ runner.os }}-android-sdk-
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
-      - name: Install Android SDK & Emulator
-        uses: android-actions/setup-android@v3
+      - name: Run Emulator & Tests
+        uses: ReactiveCircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
           arch: ${{ matrix.arch }}
-          ndk-version: ${{ matrix.ndk-version }}
-          cmake-version: "3.22.1"
-          emulator: true
-          cache-key: ${{ runner.os }}-android-sdk-${{ matrix.api-level }}-${{ matrix.arch }}
-
-      - name: Start Emulator
-        uses: android-actions/start-emulator@v3
-        with:
-          api-level: ${{ matrix.api-level }}
-          arch: ${{ matrix.arch }}
+          target: default
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-audio -no-boot-anim -camera-back none
           script: ./gradlew connectedCheck --no-daemon
