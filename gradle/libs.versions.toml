@@ -30,9 +30,6 @@ composeCompilerVersion = "2.0.21"
 # Kotlin
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
-kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
-kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
-kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-serialization-protobuf = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-protobuf", version.ref = "serialization" }
 
@@ -105,8 +102,6 @@ kotlinx-coroutines-swing = { group = "org.jetbrains.kotlinx", name = "kotlinx-co
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-coroutines-debug = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-debug", version.ref = "coroutines" }
 
-# Serialization (defined above in Kotlin section)
-
 # OkHttp
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "okhttp-logging-interceptor", version.ref = "okhttp" }
@@ -150,10 +145,10 @@ spirv-cross = { group = "com.google.android.filament", name = "spirv-cross", ver
 # Assimp
 assimp = { group = "org.assimp", name = "assimp", version.ref = "assimp" }
 
-# GLM (Header only, usually not a maven artifact, but requested. Providing a maven wrapper if available or note. There is a port: 'org.cpp-dependencies:glm')
+# GLM
 glm = { group = "org.cpp-dependencies", name = "glm", version.ref = "glm" }
 
-# Eigen (Header only, maven port: 'org.cpp-dependencies:eigen')
+# Eigen
 eigen = { group = "org.cpp-dependencies", name = "eigen", version.ref = "eigen" }
 
 [plugins]
