@@ -1,0 +1,383 @@
+material {
+    name: "prisma_default_material",
+    parameters: [
+        { name: "baseColor", type: "float4", value: [1.0, 1.0, 1.0, 1.0] },
+        { name: "baseColorMap", type: "sampler2D" },
+        { name: "metallic", type: "float", value: 0.0 },
+        { name: "roughness", type: "float", value: 0.5 },
+        { name: "metallicRoughnessMap", type: "sampler2D" },
+        { name: "normalMap", type: "sampler2D" },
+        { name: "normalScale", type: "float", value: 1.0 },
+        { name: "aoMap", type: "sampler2D" },
+        { name: "aoStrength", type: "float", value: 1.0 },
+        { name: "emissive", type: "float3", value: [0.0, 0.0, 0.0] },
+        { name: "emissiveMap", type: "sampler2D" },
+        { name: "emissiveStrength", type: "float", value: 1.0 },
+        { name: "clearcoat", type: "float", value: 0.0 },
+        { name: "clearcoatRoughness", type: "float", value: 0.0 },
+        { name: "clearcoatMap", type: "sampler2D" },
+        { name: "clearcoatNormalMap", type: "sampler2D" },
+        { name: "sheenColor", type: "float3", value: [0.0, 0.0, 0.0] },
+        { name: "sheenRoughness", type: "float", value: 0.0 },
+        { name: "sheenColorMap", type: "sampler2D" },
+        { name: "sheenRoughnessMap", type: "sampler2D" },
+        { name: "alphaCutoff", type: "float", value: 0.5 },
+        { name: "doubleSided", type: "bool", value: false },
+        { name: "flipUV", type: "bool", value: false },
+        { name: "useVertexColor", type: "bool", value: false }
+    ],
+    requires: [
+        "baseColor",
+        "metallic",
+        "roughness",
+        "normal",
+        "ao",
+        "emissive",
+        "clearcoat",
+        "sheen"
+    ],
+    vertexAttributes: [
+        "POSITION",
+        "NORMAL",
+        "TANGENTS",
+        "UV0",
+        "UV1",
+        "COLOR",
+        "BONE_INDICES",
+        "BONE_WEIGHTS"
+    ],
+    vertexDomain: "vertex",
+    fragmentDomain: "fragment",
+    shadingModel: "lit",
+    blendingMode: "opaque",
+    cullingMode: "back",
+    depthTest: true,
+    depthWrite: true,
+    variants: [
+        "OPAQUE",
+        "TRANSPARENT",
+        "MASKED",
+        "DOUBLE_SIDED",
+        "SKINNED",
+        "VERTEX_COLOR",
+        "CLEARCOAT",
+        "SHEEN",
+        "EMISSIVE_MAP",
+        "NORMAL_MAP",
+        "AO_MAP",
+        "METALLIC_ROUGHNESS_MAP",
+        "CLEARCOAT_MAP",
+        "CLEARCOAT_NORMAL_MAP",
+        "SHEEN_COLOR_MAP",
+        "SHEEN_ROUGHNESS_MAP",
+        "UV1"
+    ],
+    vertexShader: "
+        #version 300 es
+        #define FILAMENT_SHADER_VERSION 2
+
+        #ifdef VERTEX_DOMAIN
+        struct VertexInputs {
+            float3 position  : ATTRIBUTE0;
+            float3 normal    : ATTRIBUTE1;
+            float4 tangent   : ATTRIBUTE2;
+            float2 uv0       : ATTRIBUTE3;
+            float2 uv1       : ATTRIBUTE4;
+            float4 color     : ATTRIBUTE5;
+            uint4 joints     : ATTRIBUTE6;
+            float4 weights   : ATTRIBUTE7;
+        };
+
+        struct VertexOutputs {
+            float4 position  : SV_POSITION;
+            float3 worldPos  : TEXCOORD0;
+            float3 normal    : TEXCOORD1;
+            float3 tangent   : TEXCOORD2;
+            float3 bitangent : TEXCOORD3;
+            float2 uv0       : TEXCOORD4;
+            float2 uv1       : TEXCOORD5;
+            float4 color     : TEXCOORD6;
+        };
+
+        struct PerViewUniforms {
+            mat4 viewMatrix;
+            mat4 projectionMatrix;
+            mat4 viewProjectionMatrix;
+            mat4 modelMatrix;
+            mat3 normalMatrix;
+            float4 viewport;
+            float time;
+            float3 cameraPosition;
+            float padding;
+        };
+
+        struct PerRenderableUniforms {
+            mat4 modelMatrix;
+            mat4 modelViewMatrix;
+            mat3 normalMatrix;
+            mat4 boneMatrices[128];
+        };
+
+        uniform PerViewUniforms perView;
+        uniform PerRenderableUniforms perRenderable;
+
+        VertexOutputs main(VertexInputs inputs) {
+            VertexOutputs outputs;
+
+            float3 position = inputs.position;
+            float3 normal = inputs.normal;
+            float3 tangent = inputs.tangent.xyz;
+            float tangentSign = inputs.tangent.w;
+
+            #ifdef SKINNED
+            mat4 skinMatrix = mat4(0.0);
+            skinMatrix += perRenderable.boneMatrices[inputs.joints.x] * inputs.weights.x;
+            skinMatrix += perRenderable.boneMatrices[inputs.joints.y] * inputs.weights.y;
+            skinMatrix += perRenderable.boneMatrices[inputs.joints.z] * inputs.weights.z;
+            skinMatrix += perRenderable.boneMatrices[inputs.joints.w] * inputs.weights.w;
+
+            position = (skinMatrix * float4(position, 1.0)).xyz;
+            normal = (skinMatrix * float4(normal, 0.0)).xyz;
+            tangent = (skinMatrix * float4(tangent, 0.0)).xyz;
+            #endif
+
+            float3 bitangent = cross(normal, tangent) * tangentSign;
+
+            float4 worldPos = perRenderable.modelMatrix * float4(position, 1.0);
+            outputs.worldPos = worldPos.xyz;
+            outputs.normal = normalize(perRenderable.normalMatrix * normal);
+            outputs.tangent = normalize(perRenderable.normalMatrix * tangent);
+            outputs.bitangent = normalize(perRenderable.normalMatrix * bitangent);
+            outputs.uv0 = inputs.uv0;
+            outputs.uv1 = inputs.uv1;
+            outputs.color = inputs.color;
+
+            outputs.position = perView.viewProjectionMatrix * worldPos;
+
+            return outputs;
+        }
+        #endif
+    ",
+    fragmentShader: "
+        #version 300 es
+        #define FILAMENT_SHADER_VERSION 2
+
+        #ifdef FRAGMENT_DOMAIN
+        precision highp float;
+
+        struct FragmentInputs {
+            float3 worldPos  : TEXCOORD0;
+            float3 normal    : TEXCOORD1;
+            float3 tangent   : TEXCOORD2;
+            float3 bitangent : TEXCOORD3;
+            float2 uv0       : TEXCOORD4;
+            float2 uv1       : TEXCOORD5;
+            float4 color     : TEXCOORD6;
+        };
+
+        uniform sampler2D baseColorMap;
+        uniform sampler2D metallicRoughnessMap;
+        uniform sampler2D normalMap;
+        uniform sampler2D aoMap;
+        uniform sampler2D emissiveMap;
+        uniform sampler2D clearcoatMap;
+        uniform sampler2D clearcoatNormalMap;
+        uniform sampler2D sheenColorMap;
+        uniform sampler2D sheenRoughnessMap;
+
+        uniform float4 baseColor;
+        uniform float metallic;
+        uniform float roughness;
+        uniform float normalScale;
+        uniform float aoStrength;
+        uniform float3 emissive;
+        uniform float emissiveStrength;
+        uniform float clearcoat;
+        uniform float clearcoatRoughness;
+        uniform float3 sheenColor;
+        uniform float sheenRoughness;
+        uniform float alphaCutoff;
+        uniform bool flipUV;
+        uniform bool useVertexColor;
+
+        struct MaterialParams {
+            float3 baseColor;
+            float metallic;
+            float roughness;
+            float3 normal;
+            float ao;
+            float3 emissive;
+            float clearcoat;
+            float clearcoatRoughness;
+            float3 sheenColor;
+            float sheenRoughness;
+            float alpha;
+        };
+
+        MaterialParams getMaterialParams(FragmentInputs inputs) {
+            MaterialParams params;
+
+            float2 uv = inputs.uv0;
+            if (flipUV) uv.y = 1.0 - uv.y;
+
+            float4 baseColorTex = texture(baseColorMap, uv);
+            params.baseColor = baseColor.rgb * baseColorTex.rgb;
+            params.alpha = baseColor.a * baseColorTex.a;
+
+            #ifdef USE_VERTEX_COLOR
+            params.baseColor *= inputs.color.rgb;
+            params.alpha *= inputs.color.a;
+            #endif
+
+            float4 mrTex = texture(metallicRoughnessMap, uv);
+            params.metallic = metallic * mrTex.b;
+            params.roughness = roughness * mrTex.g;
+
+            params.normal = normalize(inputs.normal);
+            #ifdef NORMAL_MAP
+            float3 normalMapSample = texture(normalMap, uv).rgb * 2.0 - 1.0;
+            normalMapSample.xy *= normalScale;
+            mat3 tbn = mat3(inputs.tangent, inputs.bitangent, inputs.normal);
+            params.normal = normalize(tbn * normalMapSample);
+            #endif
+
+            params.ao = 1.0;
+            #ifdef AO_MAP
+            params.ao = mix(1.0, texture(aoMap, uv).r, aoStrength);
+            #endif
+
+            params.emissive = emissive * emissiveStrength;
+            #ifdef EMISSIVE_MAP
+            params.emissive += texture(emissiveMap, uv).rgb * emissiveStrength;
+            #endif
+
+            params.clearcoat = clearcoat;
+            params.clearcoatRoughness = clearcoatRoughness;
+            #ifdef CLEARCOAT_MAP
+            float4 clearcoatTex = texture(clearcoatMap, uv);
+            params.clearcoat *= clearcoatTex.r;
+            params.clearcoatRoughness *= clearcoatTex.g;
+            #endif
+
+            #ifdef CLEARCOAT_NORMAL_MAP
+            float3 clearcoatNormal = texture(clearcoatNormalMap, uv).rgb * 2.0 - 1.0;
+            mat3 tbn = mat3(inputs.tangent, inputs.bitangent, inputs.normal);
+            params.normal = normalize(tbn * clearcoatNormal);
+            #endif
+
+            params.sheenColor = sheenColor;
+            params.sheenRoughness = sheenRoughness;
+            #ifdef SHEEN_COLOR_MAP
+            params.sheenColor *= texture(sheenColorMap, uv).rgb;
+            #endif
+            #ifdef SHEEN_ROUGHNESS_MAP
+            params.sheenRoughness *= texture(sheenRoughnessMap, uv).r;
+            #endif
+
+            return params;
+        }
+
+        float3 evaluateBRDF(MaterialParams params, float3 V, float3 N, float3 L) {
+            float3 H = normalize(V + L);
+            float NdotL = max(dot(N, L), 0.0);
+            float NdotV = max(dot(N, V), 0.0);
+            float NdotH = max(dot(N, H), 0.0);
+            float VdotH = max(dot(V, H), 0.0);
+
+            float3 F0 = mix(float3(0.04), params.baseColor, params.metallic);
+            float3 F = F0 + (1.0 - F0) * pow(1.0 - VdotH, 5.0);
+
+            float roughnessSq = params.roughness * params.roughness;
+            float D = roughnessSq / (PI * pow(NdotH * NdotH * (roughnessSq - 1.0) + 1.0, 2.0));
+
+            float k = (params.roughness + 1.0) * (params.roughness + 1.0) / 8.0;
+            float GGX_V = NdotL * (1.0 - k) + k;
+            float GGX_L = NdotV * (1.0 - k) + k;
+            float G = 0.5 / max(GGX_V * GGX_L, 0.0001);
+
+            float3 specular = D * F * G / (4.0 * NdotV * NdotL + 0.0001);
+
+            float3 diffuse = (1.0 - F) * params.baseColor / PI * (1.0 - params.metallic);
+
+            return (diffuse + specular) * NdotL * params.ao;
+        }
+
+        float3 evaluateClearcoat(MaterialParams params, float3 V, float3 N, float3 L) {
+            if (params.clearcoat == 0.0) return float3(0.0);
+
+            float3 H = normalize(V + L);
+            float NdotL = max(dot(N, L), 0.0);
+            float NdotV = max(dot(N, V), 0.0);
+            float NdotH = max(dot(N, H), 0.0);
+            float VdotH = max(dot(V, H), 0.0);
+
+            float3 F0 = float3(0.04);
+            float3 F = F0 + (1.0 - F0) * pow(1.0 - VdotH, 5.0);
+
+            float roughnessSq = params.clearcoatRoughness * params.clearcoatRoughness;
+            float D = roughnessSq / (PI * pow(NdotH * NdotH * (roughnessSq - 1.0) + 1.0, 2.0));
+
+            float k = (params.clearcoatRoughness + 1.0) * (params.clearcoatRoughness + 1.0) / 8.0;
+            float GGX_V = NdotL * (1.0 - k) + k;
+            float GGX_L = NdotV * (1.0 - k) + k;
+            float G = 0.5 / max(GGX_V * GGX_L, 0.0001);
+
+            return 0.25 * params.clearcoat * D * F * G / (NdotV * NdotL + 0.0001) * NdotL;
+        }
+
+        float3 evaluateSheen(MaterialParams params, float3 V, float3 N, float3 L) {
+            if (length(params.sheenColor) == 0.0) return float3(0.0);
+
+            float3 H = normalize(V + L);
+            float NdotL = max(dot(N, L), 0.0);
+            float NdotV = max(dot(N, V), 0.0);
+            float VdotH = max(dot(V, H), 0.0);
+
+            float3 F = params.sheenColor * (1.0 - pow(1.0 - VdotH, 5.0));
+
+            float roughnessSq = params.sheenRoughness * params.sheenRoughness;
+            float D = 1.0 / (PI * pow(roughnessSq, 2.0));
+
+            return F * D * NdotL;
+        }
+
+        float4 main(FragmentInputs inputs) {
+            MaterialParams params = getMaterialParams(inputs);
+
+            #ifdef MASKED
+            if (params.alpha < alphaCutoff) {
+                discard;
+            }
+            #endif
+
+            float3 V = normalize(perView.cameraPosition - inputs.worldPos);
+            float3 N = params.normal;
+
+            float3 lighting = float3(0.0);
+
+            // Simplified: assume single directional light for demo
+            // In real implementation, iterate over lights from uniform buffer
+            float3 L = normalize(float3(0.5, 1.0, 0.3));
+            float3 lightColor = float3(1.0, 1.0, 0.95) * 30000.0;
+
+            lighting += evaluateBRDF(params, V, N, L) * lightColor;
+            lighting += evaluateClearcoat(params, V, N, L) * lightColor;
+            lighting += evaluateSheen(params, V, N, L) * lightColor;
+
+            // Ambient
+            lighting += params.baseColor * 0.03 * params.ao;
+
+            // Emissive
+            lighting += params.emissive;
+
+            float alpha = params.alpha;
+
+            #ifdef TRANSPARENT
+            return float4(lighting, alpha);
+            #else
+            return float4(lighting, 1.0);
+            #endif
+        }
+        #endif
+    "
+}
