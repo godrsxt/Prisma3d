@@ -1,0 +1,25 @@
+// Binary KTX2 Asset (Basis Universal Supercompressed)
+// ---------------------------------------------------
+// This file is a pre-baked Image-Based Lighting (IBL) asset container.
+// Format: KTX v2.0 with BasisU (ETC1S / UASTC) supercompression.
+// Contents:
+//   1. Skybox (Cube Map, Array Layer 0-5, Mipmapped)
+//   2. Specular Pre-filtered Environment Map (Cube Map, Array Layer 6-11, Full Mip Chain for Roughness 0.0 - 1.0)
+//   3. Irradiance Map (Cube Map, Array Layer 12-17, Low Mip / SH Coefficients)
+//   4. BRDF Integration LUT (2D Texture, Array Layer 18, 512x512 RG16F)
+// ---------------------------------------------------
+// Generation Pipeline (Reference):
+// cmake -DTOKTX_APPS=ON -DKTX_FEATURE_TOOLS=ON ..
+// make ktxsc
+// ktxsc --generate-mipmap --encode uastc --zstd 19 \
+//   --assign-oetf linear --assign-primaries bt709 \
+//   --target-env vulkan \
+//   skybox.hdr specular.hdr irradiance.hdr brdf_lut.png \
+//   default_ibl.ktx
+//
+// Loading via PrismaEngine:
+// val iblBytes = context.assets.open("environments/default_ibl.ktx").readBytes()
+// PrismaEngine.setIBL(iblBytes)
+// ---------------------------------------------------
+// NOTE: Binary content omitted. This placeholder represents the required asset file.
+// In a real build, this binary file is copied to 'app/src/main/assets/environments/default_ibl.ktx'.
