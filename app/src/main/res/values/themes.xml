@@ -1,0 +1,16 @@
+<resources>
+    <style name="Theme.Prisma3d" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#00BFA6</item>
+        <item name="colorSecondary">#1E1E1E</item>
+        <item name="colorSurface">#252525</item>
+        <item name="colorError">#CF6679</item>
+        
+        <item name="windowNoTitle">true</item>
+        <item name="windowFullscreen">true</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
+        <item name="android:statusBarColor">?attr/colorSurface</item>
+        
+        <item name="gizmoColor">?attr/colorPrimary</item>
+        <item name="selectionColor">?attr/colorSecondary</item>
+    </style>
+</resources>
