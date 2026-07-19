@@ -101,14 +101,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-reports
-          path: **/build/reports/tests/
+          path: "**/build/reports/tests/"
 
       - name: Upload Unit Test Results (JUnit XML)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-results-xml
-          path: **/build/test-results/test/**/*.xml
+          path: "**/build/test-results/test/**/*.xml"
 
   # ---------------------------------------------------------
   # INSTRUMENTED TESTS (EMULATOR MATRIX)
@@ -183,14 +183,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: instrumented-test-reports-api-${{ matrix.api-level }}
-          path: **/build/reports/androidTests/connected/
+          path: "**/build/reports/androidTests/connected/"
 
       - name: Upload Instrumented Test Results (JUnit XML)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: instrumented-test-results-api-${{ matrix.api-level }}
-          path: **/build/outputs/android_test_results/connected/**/*.xml
+          path: "**/build/outputs/android_test_results/connected/**/*.xml"
 
   # ---------------------------------------------------------
   # BUILD ARTIFACTS (DEBUG / RELEASE)
@@ -256,28 +256,28 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: **/build/outputs/apk/debug/*.apk
+          path: "**/build/outputs/apk/debug/*.apk"
           retention-days: 7
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: app-release-apk
-          path: **/build/outputs/apk/release/*.apk
+          path: "**/build/outputs/apk/release/*.apk"
           retention-days: 30
 
       - name: Upload Release Bundle (AAB)
         uses: actions/upload-artifact@v4
         with:
           name: app-release-bundle
-          path: **/build/outputs/bundle/release/*.aab
+          path: "**/build/outputs/bundle/release/*.aab"
           retention-days: 30
 
       - name: Upload Mapping Files (ProGuard/R8)
         uses: actions/upload-artifact@v4
         with:
           name: mapping-files
-          path: **/build/outputs/mapping/release/mapping.txt
+          path: "**/build/outputs/mapping/release/mapping.txt"
           retention-days: 30
 
       - name: Generate Build Summary
