@@ -1,0 +1,289 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true"
+  JAVA_VERSION: "17"
+  GRADLE_VERSION: "8.5"
+
+jobs:
+  # ---------------------------------------------------------
+  # LINTING
+  # ---------------------------------------------------------
+  lint:
+    name: Lint (ktlint & detekt)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+
+      - name: Cache NDK & CMake
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/ndk
+            ~/.android/cmake
+          key: ${{ runner.os }}-android-sdk-${{ hashFiles('**/build.gradle*', '**/gradle.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-android-sdk-
+
+      - name: Run ktlintCheck
+        run: ./gradlew ktlintCheck --no-daemon
+
+      - name: Run detekt
+        run: ./gradlew detekt --no-daemon
+
+      - name: Upload Lint Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-reports
+          path: |
+            **/build/reports/ktlint/
+            **/build/reports/detekt/
+
+  # ---------------------------------------------------------
+  # UNIT TESTS
+  # ---------------------------------------------------------
+  unit-tests:
+    name: Unit Tests (JUnit & Robolectric)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+
+      - name: Cache NDK & CMake
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/ndk
+            ~/.android/cmake
+          key: ${{ runner.os }}-android-sdk-${{ hashFiles('**/build.gradle*', '**/gradle.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-android-sdk-
+
+      - name: Run Unit Tests
+        run: ./gradlew test --no-daemon --continue
+
+      - name: Upload Unit Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: **/build/reports/tests/
+
+      - name: Upload Unit Test Results (JUnit XML)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-xml
+          path: **/build/test-results/test/**/*.xml
+
+  # ---------------------------------------------------------
+  # INSTRUMENTED TESTS (EMULATOR MATRIX)
+  # ---------------------------------------------------------
+  instrumented-tests:
+    name: Instrumented Tests (API ${{ matrix.api-level }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [24, 28, 31, 34]
+        arch: [x86_64] # x86_64 is faster on GitHub runners than arm64 emulation
+        include:
+          - api-level: 24
+            ndk-version: "25.2.9519653"
+          - api-level: 28
+            ndk-version: "25.2.9519653"
+          - api-level: 31
+            ndk-version: "26.1.10909125"
+          - api-level: 34
+            ndk-version: "26.1.10909125"
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+
+      - name: Cache Android SDK, NDK, CMake
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/sdk
+            ~/.android/ndk
+            ~/.android/cmake
+          key: ${{ runner.os }}-android-sdk-${{ matrix.api-level }}-${{ matrix.arch }}-${{ hashFiles('**/build.gradle*', '**/gradle.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-android-sdk-${{ matrix.api-level }}-${{ matrix.arch }}-
+            ${{ runner.os }}-android-sdk-
+
+      - name: Install Android SDK & Emulator
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: ${{ matrix.arch }}
+          ndk-version: ${{ matrix.ndk-version }}
+          cmake-version: "3.22.1"
+          emulator: true
+          cache-key: ${{ runner.os }}-android-sdk-${{ matrix.api-level }}-${{ matrix.arch }}
+
+      - name: Start Emulator
+        uses: android-actions/start-emulator@v3
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: ${{ matrix.arch }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-audio -no-boot-anim -camera-back none
+          script: ./gradlew connectedCheck --no-daemon
+
+      - name: Upload Instrumented Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrumented-test-reports-api-${{ matrix.api-level }}
+          path: **/build/reports/androidTests/connected/
+
+      - name: Upload Instrumented Test Results (JUnit XML)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrumented-test-results-api-${{ matrix.api-level }}
+          path: **/build/outputs/android_test_results/connected/**/*.xml
+
+  # ---------------------------------------------------------
+  # BUILD ARTIFACTS (DEBUG / RELEASE)
+  # ---------------------------------------------------------
+  build:
+    name: Build APKs & Bundles
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [lint, unit-tests] # Optional: wait for lint/unit tests to pass before building release artifacts
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for versioning plugins (e.g. git-version)
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+
+      - name: Cache NDK & CMake
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/ndk
+            ~/.android/cmake
+          key: ${{ runner.os }}-android-sdk-${{ hashFiles('**/build.gradle*', '**/gradle.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-android-sdk-
+
+      - name: Decode Keystore (if secrets exist)
+        if: env.SIGNING_KEY_BASE64 != ''
+        id: decode_keystore
+        run: |
+          echo "${{ secrets.SIGNING_KEY_BASE64 }}" | base64 --decode > ${{ runner.temp }}/release.keystore
+          echo "KEYSTORE_PATH=${{ runner.temp }}/release.keystore" >> $GITHUB_OUTPUT
+
+      - name: Build Debug & Release Variants
+        env:
+          KEYSTORE_PATH: ${{ steps.decode_keystore.outputs.KEYSTORE_PATH }}
+          KEYSTORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          ./gradlew \
+            assembleDebug \
+            assembleRelease \
+            bundleRelease \
+            --no-daemon \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: **/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: **/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: Upload Release Bundle (AAB)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-bundle
+          path: **/build/outputs/bundle/release/*.aab
+          retention-days: 30
+
+      - name: Upload Mapping Files (ProGuard/R8)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapping-files
+          path: **/build/outputs/mapping/release/mapping.txt
+          retention-days: 30
+
+      - name: Generate Build Summary
+        run: |
+          echo "## Build Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- **Debug APK**: \`app-debug-apk\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release APK**: \`app-release-apk\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release Bundle (AAB)**: \`app-release-bundle\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Mapping File**: \`mapping-files\`" >> $GITHUB_STEP_SUMMARY
