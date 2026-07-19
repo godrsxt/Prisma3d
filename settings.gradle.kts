@@ -67,19 +67,3 @@ include(":feature:timeline")
 include(":feature:import_export")
 include(":feature:modeling")
 include(":feature:rendering")
-
-configureEach {
-    val name = this.name
-    when (name) {
-        "app" -> projectDir.set(file("app"))
-        "core:engine" -> projectDir.set(file("core/engine"))
-        "core:common" -> projectDir.set(file("core/common"))
-        "feature:viewport" -> projectDir.set(file("feature/viewport"))
-        "feature:ui" -> projectDir.set(file("feature/ui"))
-        "feature:scene" -> projectDir.set(file("feature/scene"))
-        "feature:timeline" -> projectDir.set(file("feature/timeline"))
-        "feature:import_export" -> projectDir.set(file("feature/import_export"))
-        "feature:modeling" -> projectDir.set(file("feature/modeling"))
-        "feature:rendering" -> projectDir.set(file("feature/rendering"))
-    }
-}
